@@ -1,0 +1,33 @@
+[project]
+name = "wiki-agent"
+version = "0.1.0"
+description = "A Pydantic AI agent that answers questions grounded in English Wikipedia"
+readme = "README.md"
+authors = [
+    { name = "Yefry Lopez", email = "yefry.lopez@shule.tech" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "jupyter>=1.1.1",
+    "openai>=3.35.1",
+    "pydantic-ai>=2.58.0",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+wiki-agent = "wiki_agent.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "jupyter>=1.1.1",
+    "pytest>=9.1.1",
+]
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+testpaths = ["tests"]
