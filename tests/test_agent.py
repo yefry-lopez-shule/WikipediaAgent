@@ -1,5 +1,8 @@
+import pytest
 from fakes import search_response, wiki
 from scripted import answer, call, scripted, tool_returns
+
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from wiki_agent.agent import create_agent
 from wiki_agent.models import Source, WikiAnswer
@@ -77,3 +80,25 @@ def test_agent_recovers_from_missing_page_by_searching_again():
     assert seen["pages"][0].startswith("Page 'Capybarra' was not found.")
     assert seen["pages"][1] == CAPYBARA
     assert result.output.found is True
+
+
+def test_looping_model_is_stopped_by_default_usage_limit():
+    session = wiki(search={"capybara": search_response(("Capybara", "giant rodent"))})
+    agent = create_agent(model=scripted(call("search", query="capybara")), tools=WikipediaTools(session=session))
+
+    with pytest.raises(UsageLimitExceeded):
+        agent.run_sync("Where do capybaras live?")
+
+    assert len(session.calls) <= 8  # budget: ~3 searches + ~3 page reads, a little slack
+
+
+def test_not_found_answer_round_trips_with_empty_sources():
+    model = scripted(
+        call("search", query="capybara habitat"),
+        answer(answer="Wikipedia doesn't say.", sources=[], found=False),
+    )
+    agent = create_agent(model=model, tools=capybara_tools())
+
+    result = agent.run_sync("What is the capybara's favourite song?")
+
+    assert result.output == WikiAnswer(answer="Wikipedia doesn't say.", sources=[], found=False)
