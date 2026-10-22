@@ -83,10 +83,11 @@ class WikipediaTools:
             "srlimit": self.search_limit,
         }
         response = self._get("api.php", params)
-        return [
-            {"title": hit["title"], "snippet": re.sub(r"<[^>]+>", "", hit["snippet"])}
-            for hit in response.json()["query"]["search"]
-        ]
+        try:
+            hits = response.json()["query"]["search"]
+        except (ValueError, KeyError, TypeError) as error:
+            raise ModelRetry(f"Wikipedia returned an unexpected search response ({error!r}). Try again.") from error
+        return [{"title": hit["title"], "snippet": re.sub(r"<[^>]+>", "", hit["snippet"])} for hit in hits]
 
     def get_page(self, title: str, offset: int = 0) -> str:
         """Get the cleaned text of a Wikipedia page by its exact title, one chunk at a time.
@@ -127,7 +128,9 @@ class WikipediaTools:
 
     def _chunk(self, title: str, text: str, offset: int) -> str:
         total = len(text)
-        if offset < 0 or (offset >= total and offset > 0):
+        if offset < 0:
+            return f"Offset {offset} is negative. Use offset=0 to read '{title}' from the start."
+        if offset >= total and offset > 0:
             return f"Offset {offset} is past the end of '{title}' ({total} chars). Use a smaller offset."
         end = offset + self.chunk_size
         chunk = text[offset:end]

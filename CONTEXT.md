@@ -26,6 +26,11 @@ API (`index.php?action=raw`). See [ADR-0001](docs/adr/0001-wikipedia-agent-desig
 - `WikipediaTools` (`src/wiki_agent/tools.py`) — holds the HTTP session
   (User-Agent set), `lang`, search limit, chunk size. Methods `search(query)`
   and `get_page(title, offset=0)` are the agent's tools.
-- `create_agent(model=None)` (`src/wiki_agent/agent.py`) — builds the agent;
-  model from `WIKI_AGENT_MODEL`, default `openai:gpt-4o-mini`.
+- `create_agent(model=None, tools=None)` (`src/wiki_agent/agent.py`) — builds a
+  `WikiAgent`; model from `WIKI_AGENT_MODEL`, default `openai:gpt-4o-mini`;
+  `tools` lets tests inject a `WikipediaTools` with a fake session.
+- `WikiAgent` (`src/wiki_agent/agent.py`) — an `Agent` whose runs default to the
+  usage budget (`USAGE_LIMITS`) unless a caller passes `usage_limits`.
+- `print_messages` (`src/wiki_agent/display.py`) — prints prompts, tool calls
+  with args, and tool returns of a run.
 - `main` (`src/wiki_agent/cli.py`) — one-shot answer or interactive chat loop.

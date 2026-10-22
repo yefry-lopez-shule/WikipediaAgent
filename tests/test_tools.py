@@ -140,3 +140,16 @@ def test_requests_are_sent_with_a_timeout():
     tools.get_page("Capybara")
 
     assert [c.timeout for c in session.calls] == [10, 10]
+
+
+def test_malformed_search_response_raises_model_retry():
+    tools = WikipediaTools(session=FakeSession(lambda url, params: FakeResponse(json_data={"error": "bad"})))
+
+    with pytest.raises(ModelRetry, match="Wikipedia"):
+        tools.search("capybara")
+
+
+def test_negative_offset_returns_clear_message():
+    tools = WikipediaTools(session=wiki(pages={"Long": LONG_PAGE}), chunk_size=20)
+
+    assert tools.get_page("Long", offset=-5) == "Offset -5 is negative. Use offset=0 to read 'Long' from the start."

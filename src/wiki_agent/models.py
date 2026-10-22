@@ -2,20 +2,19 @@
 
 from urllib.parse import quote
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field
 
 
 class Source(BaseModel):
     """A Wikipedia page the agent actually read with `get_page`."""
 
     title: str = Field(description="Exact title of a page read with get_page.")
-    url: str = Field(default="", description="Leave empty; filled in from the title.")
 
-    @model_validator(mode="after")
-    def _fill_url(self) -> "Source":
-        if not self.url:
-            self.url = "https://en.wikipedia.org/wiki/" + quote(self.title.replace(" ", "_"), safe="/:_,()'")
-        return self
+    @computed_field
+    @property
+    def url(self) -> str:
+        """Always built from the title, so the model can't cite a made-up link."""
+        return "https://en.wikipedia.org/wiki/" + quote(self.title.replace(" ", "_"), safe="/:_,()'")
 
 
 class WikiAnswer(BaseModel):

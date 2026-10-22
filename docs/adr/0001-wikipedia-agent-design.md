@@ -47,3 +47,12 @@ draft in `scrips_ref/potencial tools.txt` and the course notebook
 - Tools are testable offline; the agent is model-agnostic via config.
 - Paging keeps context small but may cost extra tool calls on deep questions.
 - Section-level retrieval (a third tool) and non-English editions are deferred.
+
+## Implementation notes
+
+- `Agent` takes no default `usage_limits`, so a `WikiAgent` subclass defaults
+  them in `iter()` (which `run`, `run_sync` and `run_stream` all go through).
+- Agent wiring tests use a scripted `FunctionModel` rather than `TestModel`, so
+  each test controls the exact tool-call sequence.
+- `create_agent` also accepts `tools=` so tests can inject a fake session.
+- `Source.url` is computed from the title; the model cannot supply it.

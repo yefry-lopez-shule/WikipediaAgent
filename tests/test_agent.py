@@ -51,9 +51,10 @@ def test_agent_searches_reads_page_and_answers_citing_it():
     assert seen["page"] == [CAPYBARA]
     assert result.output == WikiAnswer(
         answer="South America.",
-        sources=[Source(title="Capybara", url="https://en.wikipedia.org/wiki/Capybara")],
+        sources=[Source(title="Capybara")],
         found=True,
     )
+    assert result.output.sources[0].url == "https://en.wikipedia.org/wiki/Capybara"
 
 
 def test_source_url_uses_underscored_title():
@@ -102,3 +103,9 @@ def test_not_found_answer_round_trips_with_empty_sources():
     result = agent.run_sync("What is the capybara's favourite song?")
 
     assert result.output == WikiAnswer(answer="Wikipedia doesn't say.", sources=[], found=False)
+
+
+def test_source_url_is_always_built_from_title():
+    source = Source.model_validate({"title": "Capybara", "url": "https://example.com/made-up"})
+
+    assert source.url == "https://en.wikipedia.org/wiki/Capybara"
