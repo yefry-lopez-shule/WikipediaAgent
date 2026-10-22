@@ -4,14 +4,17 @@ import re
 from typing import Any, Protocol
 
 import requests
+from pydantic_ai import ModelRetry
 
 USER_AGENT = "wiki-agent/0.1 (educational project; https://github.com/yefry-lopez-shule/WikipediaAgent)"
 HEADERS = {"User-Agent": USER_AGENT}
+TIMEOUT = 10  # seconds
 
 
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _REF = re.compile(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", re.DOTALL | re.IGNORECASE)
 _SIMPLE_TEMPLATE = re.compile(r"\{\{[^{}\n]*\}\}")
+_REDIRECT = re.compile(r"\s*#REDIRECT\s*\[\[([^\]|#]+)", re.IGNORECASE)
 
 
 def clean_wikitext(wikitext: str) -> str:
@@ -23,6 +26,10 @@ def clean_wikitext(wikitext: str) -> str:
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _not_found(title: str) -> str:
+    return f"Page '{title}' was not found. Use search to find the exact title, then call get_page with it."
 
 
 class HttpResponse(Protocol):
@@ -75,8 +82,7 @@ class WikipediaTools:
             "srsearch": query,
             "srlimit": self.search_limit,
         }
-        response = self.session.get(f"{self.base_url}/api.php", params=params, headers=HEADERS)
-        response.raise_for_status()
+        response = self._get("api.php", params)
         return [
             {"title": hit["title"], "snippet": re.sub(r"<[^>]+>", "", hit["snippet"])}
             for hit in response.json()["query"]["search"]
@@ -93,10 +99,31 @@ class WikipediaTools:
             title: Exact page title, e.g. "Quantum computing".
             offset: Character position to start reading from; 0 for the beginning.
         """
+        wikitext = self._fetch_raw(title)
+        prefix = ""
+        if wikitext is not None and (redirect := _REDIRECT.match(wikitext)):
+            target = redirect.group(1).strip()
+            prefix = f"[Redirected from '{title}' to '{target}']\n\n"
+            title, wikitext = target, self._fetch_raw(target)
+        if wikitext is None:
+            return prefix + _not_found(title)
+        return prefix + self._chunk(title, clean_wikitext(wikitext), offset)
+
+    def _fetch_raw(self, title: str) -> str | None:
+        """Raw wikitext of `title`, or None if the page does not exist."""
         params = {"title": title, "action": "raw"}
-        response = self.session.get(f"{self.base_url}/index.php", params=params, headers=HEADERS)
-        response.raise_for_status()
-        return self._chunk(title, clean_wikitext(response.text), offset)
+        response = self._get("index.php", params, allow_404=True)
+        return None if response.status_code == 404 else response.text
+
+    def _get(self, path: str, params: dict[str, Any], allow_404: bool = False) -> HttpResponse:
+        """GET a Wikipedia endpoint; failures become ModelRetry so the model can try again."""
+        try:
+            response = self.session.get(f"{self.base_url}/{path}", params=params, headers=HEADERS, timeout=TIMEOUT)
+            if not (allow_404 and response.status_code == 404):
+                response.raise_for_status()
+        except requests.RequestException as error:
+            raise ModelRetry(f"Wikipedia request failed ({error}). Try again or try a different query.") from error
+        return response
 
     def _chunk(self, title: str, text: str, offset: int) -> str:
         total = len(text)

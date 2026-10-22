@@ -55,3 +55,25 @@ def test_agent_searches_reads_page_and_answers_citing_it():
 
 def test_source_url_uses_underscored_title():
     assert Source(title="Rio de Janeiro").url == "https://en.wikipedia.org/wiki/Rio_de_Janeiro"
+
+
+def test_agent_recovers_from_missing_page_by_searching_again():
+    seen = {}
+
+    def final(messages, info):
+        seen["pages"] = tool_returns(messages, "get_page")
+        return answer(answer="South America.", sources=[{"title": "Capybara"}], found=True)(messages, info)
+
+    model = scripted(
+        call("get_page", title="Capybarra"),
+        call("search", query="capybara habitat"),
+        call("get_page", title="Capybara"),
+        final,
+    )
+    agent = create_agent(model=model, tools=capybara_tools())
+
+    result = agent.run_sync("Where do capybaras live?")
+
+    assert seen["pages"][0].startswith("Page 'Capybarra' was not found.")
+    assert seen["pages"][1] == CAPYBARA
+    assert result.output.found is True

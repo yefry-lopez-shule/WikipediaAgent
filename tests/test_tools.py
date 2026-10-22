@@ -1,4 +1,7 @@
-from fakes import search_response, wiki
+import pytest
+import requests
+from fakes import FakeResponse, FakeSession, search_response, wiki
+from pydantic_ai import ModelRetry
 
 from wiki_agent.tools import WikipediaTools
 
@@ -75,3 +78,65 @@ def test_offset_past_end_returns_clear_message():
     message = tools.get_page("Long", offset=50)
 
     assert message == "Offset 50 is past the end of 'Long' (50 chars). Use a smaller offset."
+
+
+def test_redirect_is_followed_and_identifies_target_title():
+    session = wiki(pages={"Capybaras": "#REDIRECT [[Capybara]]\n{{R from plural}}", "Capybara": "A giant rodent."})
+    tools = WikipediaTools(session=session)
+
+    page = tools.get_page("Capybaras")
+
+    assert page == "[Redirected from 'Capybaras' to 'Capybara']\n\nA giant rodent."
+    assert [c.params["title"] for c in session.calls] == ["Capybaras", "Capybara"]
+
+
+def test_redirect_chain_stops_after_one_hop():
+    session = wiki(pages={"A": "#REDIRECT [[B]]", "B": "#REDIRECT [[C]]", "C": "Final."})
+    tools = WikipediaTools(session=session)
+
+    page = tools.get_page("A")
+
+    assert page == "[Redirected from 'A' to 'B']\n\n#REDIRECT [[C]]"
+    assert [c.params["title"] for c in session.calls] == ["A", "B"]
+
+
+def test_missing_page_returns_not_found_message():
+    tools = WikipediaTools(session=wiki())
+
+    message = tools.get_page("Capybarra")
+
+    assert message == "Page 'Capybarra' was not found. Use search to find the exact title, then call get_page with it."
+
+
+def failing(error: Exception | None = None, status: int = 200):
+    def responder(url, params):
+        if error:
+            raise error
+        return FakeResponse(status_code=status)
+
+    return FakeSession(responder)
+
+
+@pytest.mark.parametrize(
+    "session",
+    [
+        failing(requests.Timeout("timed out")),
+        failing(requests.ConnectionError("no route")),
+        failing(status=503),
+    ],
+    ids=["timeout", "connection-error", "5xx"],
+)
+@pytest.mark.parametrize("use_tool", [lambda t: t.search("capybara"), lambda t: t.get_page("Capybara")], ids=["search", "get_page"])
+def test_network_and_server_errors_raise_model_retry(session, use_tool):
+    with pytest.raises(ModelRetry, match="Wikipedia"):
+        use_tool(WikipediaTools(session=session))
+
+
+def test_requests_are_sent_with_a_timeout():
+    session = wiki(search={"capybara": search_response(("Capybara", ""))}, pages={"Capybara": "Rodent."})
+    tools = WikipediaTools(session=session)
+
+    tools.search("capybara")
+    tools.get_page("Capybara")
+
+    assert [c.timeout for c in session.calls] == [10, 10]
