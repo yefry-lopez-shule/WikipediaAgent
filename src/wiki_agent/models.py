@@ -21,6 +21,8 @@ class Source(BaseModel):
 class WikiAnswer(BaseModel):
     """The agent's answer, grounded in the Wikipedia pages it read."""
 
-    answer: str = Field(description="The answer, in the user's language.")
+    answer: str = Field(
+        description="The answer, written in the language of the user's question (not necessarily English)."
+    )
     sources: list[Source] = Field(default_factory=list, description="Only pages read with get_page.")
     found: bool = Field(description="False when the pages read do not contain the answer.")

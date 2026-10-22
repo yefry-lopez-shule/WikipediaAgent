@@ -31,3 +31,5 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["tests"]
 testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = ["live: hits real Wikipedia and the real model (opt in with `pytest -m live`)"]
