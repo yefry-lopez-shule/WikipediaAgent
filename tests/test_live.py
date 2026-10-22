@@ -3,7 +3,7 @@
 import pytest
 from pydantic_ai.messages import ToolCallPart
 
-from wiki_agent import WikipediaTools, create_agent
+from wiki_agent import create_agent
 
 pytestmark = pytest.mark.live
 
@@ -20,9 +20,8 @@ def test_capybara_question_is_found_and_cites_capybara():
 
 
 def test_content_deep_in_an_article_is_reached_by_paging():
-    agent = create_agent(tools=WikipediaTools(chunk_size=2000))
-
-    result = agent.run_sync(
+    # The Lent passage sits near the end of "Capybara", past the first 8000-char chunk.
+    result = create_agent().run_sync(
         "According to the Wikipedia article on the capybara, why could its meat be eaten during Lent in Venezuela?"
     )
 

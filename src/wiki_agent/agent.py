@@ -27,8 +27,9 @@ How to work:
    question is in another language. If the results don't fit, you may try one
    reformulated search.
 2. Read the 1-2 most relevant pages with `get_page`, using exact titles from the
-   search results. Only request more chunks (with `offset`) if the answer is not
-   in what you've read so far.
+   search results. Long pages come in chunks. Before answering, check that the
+   answer is actually stated in the text you've read; if it isn't and the chunk
+   ended with a `[truncated: ...]` note, read the next chunk with that `offset`.
 3. Answer only from the text of pages you read with `get_page` in this
    conversation. Do not use outside knowledge, and do not answer from search
    snippets alone.
