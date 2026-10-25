@@ -52,6 +52,8 @@ draft in `scrips_ref/potencial tools.txt` and the course notebook
 
 - `Agent` takes no default `usage_limits`, so a `WikiAgent` subclass defaults
   them in `iter()` (which `run`, `run_sync` and `run_stream` all go through).
+  The default is `request_limit=12`: 8 cut off legitimate runs that page
+  through a long article. Callers can pass `usage_limits=` to override it.
 - Agent wiring tests use a scripted `FunctionModel` rather than `TestModel`, so
   each test controls the exact tool-call sequence.
 - `create_agent` also accepts `tools=` so tests can inject a fake session.

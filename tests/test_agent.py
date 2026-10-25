@@ -90,7 +90,7 @@ def test_looping_model_is_stopped_by_default_usage_limit():
     with pytest.raises(UsageLimitExceeded):
         agent.run_sync("Where do capybaras live?")
 
-    assert len(session.calls) <= 8  # budget: ~3 searches + ~3 page reads, a little slack
+    assert len(session.calls) <= 12  # budget: a few searches + several chunk reads, then stop
 
 
 def test_not_found_answer_round_trips_with_empty_sources():

@@ -16,8 +16,8 @@ from wiki_agent.tools import WikipediaTools
 
 DEFAULT_MODEL = "openai:gpt-4o-mini"
 
-# ~3 searches + ~3 page reads + the final answer, with one request of slack.
-USAGE_LIMITS = UsageLimits(request_limit=8)
+# ~3 searches + ~3 pages (paging through a long one can take 3+ chunk reads) + the answer.
+USAGE_LIMITS = UsageLimits(request_limit=12)
 
 INSTRUCTIONS = """\
 You answer questions using only English Wikipedia.
